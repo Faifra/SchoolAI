@@ -1,16 +1,10 @@
 using UnityEngine;
 
-public class IEnemyMoveable : MonoBehaviour
+interface IEnemyMoveable
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
+    Rigidbody2D RB { get; set; }
+    bool FacingRight { get; set; }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    void MoveEnemy(Vector2 velocity);
+    void CheckForLeftOrRightFacing(Vector2 velocity);
 }
