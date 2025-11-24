@@ -24,6 +24,7 @@ public class EnemyAttackState : EnemyState
     public override void EnterState()
     {
         base.EnterState();
+        _playerTransform = GameObject.FindGameObjectWithTag("Player").transform;
     }
 
     public override void ExitState()
