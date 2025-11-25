@@ -3,13 +3,18 @@ using UnityEngine;
 public class NPCBehavior : MonoBehaviour
 {
     private Node rootNode;
-    private Transform player;   // now private, auto-assigned
+    private Transform player;
     public Transform pointA;
     public Transform pointB;
 
     private bool movingToPointA = true;
     public float patrolSpeed = 2f;
     public float chaseSpeed = 4f;
+
+    // Idle state variables
+    private bool isIdle = false;
+    private float idleTimer = 0f;
+    public float idleDuration = 2f; // how long to stand still
 
     void Awake()
     {
@@ -32,6 +37,17 @@ public class NPCBehavior : MonoBehaviour
 
     void Update()
     {
+        // Handle idle pause before resuming patrol
+        if (isIdle)
+        {
+            idleTimer -= Time.deltaTime;
+            if (idleTimer <= 0f)
+            {
+                isIdle = false; // finished idling, resume patrol
+            }
+            return; // stand still during idle
+        }
+
         rootNode.Execute();
     }
 
@@ -50,6 +66,12 @@ public class NPCBehavior : MonoBehaviour
         var patrolSelector = new SelectorNode();
         patrolSelector.AddNode(chaseSequence);
         patrolSelector.AddNode(patrol);
+
+        var losePlayer = new ActionNode(LosePlayer);
+
+        var losePlayerSequence = new SequenceNode();
+        losePlayerSequence.AddNode(isPlayerInRange);
+        losePlayerSequence.AddNode(losePlayer);
 
         return patrolSelector;
     }
@@ -79,5 +101,12 @@ public class NPCBehavior : MonoBehaviour
             player.position,
             chaseSpeed * Time.deltaTime
         );
+    }
+
+    private void LosePlayer()
+    {
+        player = null;
+        isIdle = true;              // enter idle state
+        idleTimer = idleDuration;   // reset idle timer
     }
 }
