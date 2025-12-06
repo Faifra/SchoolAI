@@ -1090,6 +1090,10 @@ MonoBehaviour:
   pointB: {fileID: 1498841069}
   patrolSpeed: 2
   chaseSpeed: 4
+  detectionRange: 5
+  loseRange: 6
+  closeRange: 1
+  attackDuration: 2
   idleDuration: 2
 --- !u!4 &2061297605
 Transform:
@@ -1099,13 +1103,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2061297600}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.13697, y: -0.08614, z: 0}
+  m_LocalRotation: {x: -0, y: 0.999922, z: -0, w: -0.01249169}
+  m_LocalPosition: {x: 0.13697, y: -0.08614, z: -0.000000046076597}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 181.431, z: 0}
 --- !u!1 &2063785234
 GameObject:
   m_ObjectHideFlags: 0

@@ -65,13 +65,13 @@ public class SequenceNode : Node
                 currentIndex++;
                 if (currentIndex >= nodes.Count)
                 {
-                    currentIndex = 0; // reset for next run
+                    currentIndex = 0;
                     return NodeState.Success;
                 }
                 return NodeState.Running;
 
             case NodeState.Failure:
-                currentIndex = 0; // reset for next run
+                currentIndex = 0; 
                 return NodeState.Failure;
 
             case NodeState.Running:
@@ -101,14 +101,14 @@ public class SelectorNode : Node
         switch (state)
         {
             case NodeState.Success:
-                currentIndex = 0; // reset for next run
+                currentIndex = 0; 
                 return NodeState.Success;
 
             case NodeState.Failure:
                 currentIndex++;
                 if (currentIndex >= nodes.Count)
                 {
-                    currentIndex = 0; // reset for next run
+                    currentIndex = 0;
                     return NodeState.Failure;
                 }
                 return NodeState.Running;

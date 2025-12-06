@@ -15,27 +15,38 @@ public class NPCBehavior : MonoBehaviour
     private bool facingRight = true;
 
     // Ranges
-    public float detectionRange = 5f;   // begin chasing if within this range
-    public float loseRange = 6f;        // consider player lost if beyond this range
+    public float detectionRange = 5f; 
+    public float loseRange = 6f;       
+    public float closeRange = 1f;       // trigger attack if within this range
 
-
-    // Attacks
-    public float closeRange = 1f;
+    // Lunge attack
+    public float lungeDelay = 0.5f;     // idle before lunge
+    public float lungeSpeed = 8f;    
+    public float lungeDuration = 0.3f;  
 
     private bool isAttacking = false;
+    private bool isPreparingLunge = false;
+    private bool isLunging = false;
+    private float delayTimer = 0f;
+    private float lungeTimer = 0f;
+    private Vector3 lungeDirection;
 
-    private float attackTimer = 0f;
+    // Projectile attack
+    public Rigidbody2D bulletPrefab;
+    public float bulletSpeed = 10f;
+    public float projectileCooldown = 2f;
+    private float projectileTimer = 0f;
 
-    public float attackDuration = 2f; 
+    // Alt attack flag
+    private bool useAltAttack = false;
 
     // Idle state
     private bool isIdle = false;
     private float idleTimer = 0f;
     public float idleDuration = 2f;
 
-
     // Runtime flags for transitions
-    private bool isChasing = false;     // true only while actively chasing
+    private bool isChasing = false;
 
     // Track last position for movement direction
     private Vector3 lastPosition;
@@ -75,6 +86,10 @@ public class NPCBehavior : MonoBehaviour
         }
 
         lastPosition = transform.position;
+
+        // Cooldownfor projectile
+        if (projectileTimer > 0f)
+            projectileTimer -= Time.deltaTime;
     }
 
     private Node CreateBehaviorTree()
@@ -91,28 +106,24 @@ public class NPCBehavior : MonoBehaviour
 
         var attack = new ActionNode(AttackPlayer);
 
-        // Attack branch: if player is close -> attack
+        // Attack branch
         var attackSequence = new SequenceNode();
         attackSequence.AddNode(isPlayerClose);
         attackSequence.AddNode(attack);
 
-        // Chase branch: if detectable -> markChasing -> chase
+        // Chase branch
         var chaseSequence = new SequenceNode();
         chaseSequence.AddNode(isPlayerDetectable);
         chaseSequence.AddNode(markChasing);
         chaseSequence.AddNode(chase);
 
-        // Lost branch: if was chasing and now lost -> markNotChasing -> idle -> success
+        // Lost branch
         var lostSequence = new SequenceNode();
         lostSequence.AddNode(isPlayerLostWhileChasing);
         lostSequence.AddNode(markNotChasing);
         lostSequence.AddNode(idle);
 
-        // Root selector order:
-        // 1) Attack if close
-        // 2) Chase if player detected
-        // 3) If player was lost: idle
-        // 4) Otherwise patrol
+        // Root selector order
         var rootSelector = new SelectorNode();
         rootSelector.AddNode(attackSequence);
         rootSelector.AddNode(chaseSequence);
@@ -122,9 +133,7 @@ public class NPCBehavior : MonoBehaviour
         return rootSelector;
     }
 
-    // -------------------
     // Action / condition nodes
-    // -------------------
 
     private bool PlayerInRange(float range)
     {
@@ -138,33 +147,36 @@ public class NPCBehavior : MonoBehaviour
         return Vector3.Distance(transform.position, player.position) <= closeRange;
     }
 
-private NodeState Patrol()
-{
-    Transform targetPoint = movingToPointA ? pointA : pointB;
-    if (targetPoint == null) return NodeState.Failure;
-
-    transform.position = Vector3.MoveTowards(
-        transform.position,
-        targetPoint.position,
-        patrolSpeed * Time.deltaTime
-    );
-
-    // Flip target when reaching the point
-    if (Vector3.Distance(transform.position, targetPoint.position) < 0.1f)
+    private NodeState Patrol()
     {
-        movingToPointA = !movingToPointA;
+        Transform targetPoint = movingToPointA ? pointA : pointB;
+        if (targetPoint == null) return NodeState.Failure;
+
+        transform.position = Vector3.MoveTowards(
+            transform.position,
+            targetPoint.position,
+            patrolSpeed * Time.deltaTime
+        );
+
+        if (Vector3.Distance(transform.position, targetPoint.position) < 0.1f)
+        {
+            movingToPointA = !movingToPointA;
+        }
+
+        if (PlayerInRange(detectionRange) || PlayerClose())
+            return NodeState.Success;
+
+        return NodeState.Running;
     }
-
-    // If player is detectable, allow selector to preempt
-    if (PlayerInRange(detectionRange) || PlayerClose())
-        return NodeState.Success;
-
-    return NodeState.Running;
-}
 
     private NodeState ChasePlayer()
     {
         if (player == null) return NodeState.Failure;
+
+        if (PlayerClose())
+        {
+            return NodeState.Success;
+        }
 
         transform.position = Vector3.MoveTowards(
             transform.position,
@@ -172,34 +184,90 @@ private NodeState Patrol()
             chaseSpeed * Time.deltaTime
         );
 
-        // Keep running while chasing; the selector will preempt if out of range
+        if (!PlayerInRange(loseRange))
+        {
+            return NodeState.Success;
+        }
+
         return NodeState.Running;
     }
 
-private NodeState AttackPlayer()
-{
-    // Initialize attack only once when entering the node
-    if (!isAttacking)
+    private NodeState AttackPlayer()
     {
-        isAttacking = true;
-        attackTimer = attackDuration;
-    }
+        // Initialize attack
+        if (!isAttacking)
+        {
+            isAttacking = true;
+            isPreparingLunge = true;
+            delayTimer = lungeDelay;
+            lungeTimer = lungeDuration;
 
-    attackTimer -= Time.deltaTime;
+            // 50% chance to use projectile instead of lunge
+            useAltAttack = (Random.value < 0.5f);
 
-    if (attackTimer <= 0f)
-    {
+            if (!useAltAttack && player != null)
+            {
+                lungeDirection = (player.position - transform.position).normalized;
+            }
+        }
+
+        // Idle wind-up
+        if (isPreparingLunge)
+        {
+            delayTimer -= Time.deltaTime;
+            if (delayTimer <= 0f)
+            {
+                isPreparingLunge = false;
+
+                if (useAltAttack)
+                {
+                    // Alt attack: projectile
+                    if (projectileTimer <= 0f && player != null)
+                    {
+                        Vector2 dir = (player.position - transform.position).normalized;
+                        Rigidbody2D bullet = GameObject.Instantiate(bulletPrefab, transform.position, Quaternion.identity);
+                        bullet.linearVelocity = dir * bulletSpeed;
+
+                        projectileTimer = projectileCooldown;
+                    }
+
+                    isAttacking = false;
+                    return NodeState.Success;
+                }
+                else
+                {
+                    // Normal lunge
+                    isLunging = true;
+                }
+            }
+            return NodeState.Running;
+        }
+
+        // Lunge forward
+        if (isLunging)
+        {
+            lungeTimer -= Time.deltaTime;
+            transform.position += lungeDirection * lungeSpeed * Time.deltaTime;
+
+            if (lungeTimer <= 0f)
+            {
+                isLunging = false;
+                isAttacking = false;
+                return NodeState.Success;
+            }
+
+            return NodeState.Running;
+        }
+
+        // Safety reset
         isAttacking = false;
-        return NodeState.Success; // attack complete; selector falls back to patrol/chase
+        isLunging = false;
+        isPreparingLunge = false;
+        return NodeState.Success;
     }
-
-    // Stop moving as a first version of attack
-    return NodeState.Running;
-}
 
     private NodeState Idle()
     {
-        // Initialize idle only once when entering the node
         if (!isIdle)
         {
             isIdle = true;
@@ -211,7 +279,7 @@ private NodeState AttackPlayer()
         if (idleTimer <= 0f)
         {
             isIdle = false;
-            return NodeState.Success; // idle complete; selector falls back to patrol
+            return NodeState.Success;
         }
 
         return NodeState.Running;
@@ -221,7 +289,7 @@ private NodeState AttackPlayer()
     {
         facingRight = !facingRight;
         Vector3 scale = transform.localScale;
-        scale.x *= -1; // Flip the X axis
+        scale.x *= -1;
         transform.localScale = scale;
     }
 }
