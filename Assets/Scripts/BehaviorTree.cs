@@ -1,24 +1,30 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum NodeState
+{
+    Success,
+    Failure,
+    Running
+}
+
 public abstract class Node
 {
-    public abstract bool Execute();
+    public abstract NodeState Execute();
 }
 
 public class ActionNode : Node
 {
-    private System.Action action;
+    private System.Func<NodeState> action;
 
-    public ActionNode(System.Action action)
+    public ActionNode(System.Func<NodeState> action)
     {
         this.action = action;
     }
 
-    public override bool Execute()
+    public override NodeState Execute()
     {
-        action.Invoke();
-        return true; // Assuming action always succeeds
+        return action.Invoke();
     }
 }
 
@@ -31,52 +37,86 @@ public class ConditionNode : Node
         this.condition = condition;
     }
 
-    public override bool Execute()
+    public override NodeState Execute()
     {
-        return condition.Invoke();
+        return condition.Invoke() ? NodeState.Success : NodeState.Failure;
     }
 }
 
 public class SequenceNode : Node
 {
     private List<Node> nodes = new List<Node>();
+    private int currentIndex = 0;
 
     public void AddNode(Node node)
     {
         nodes.Add(node);
     }
 
-    public override bool Execute()
+    public override NodeState Execute()
     {
-        foreach (var node in nodes)
+        if (nodes.Count == 0) return NodeState.Success;
+
+        var state = nodes[currentIndex].Execute();
+
+        switch (state)
         {
-            if (!node.Execute())
-            {
-                return false; // Sequence fails if any node fails
-            }
+            case NodeState.Success:
+                currentIndex++;
+                if (currentIndex >= nodes.Count)
+                {
+                    currentIndex = 0; // reset for next run
+                    return NodeState.Success;
+                }
+                return NodeState.Running;
+
+            case NodeState.Failure:
+                currentIndex = 0; // reset for next run
+                return NodeState.Failure;
+
+            case NodeState.Running:
+                return NodeState.Running;
         }
-        return true; // All nodes succeeded
+
+        return NodeState.Failure;
     }
 }
 
 public class SelectorNode : Node
 {
     private List<Node> nodes = new List<Node>();
+    private int currentIndex = 0;
 
     public void AddNode(Node node)
     {
         nodes.Add(node);
     }
 
-    public override bool Execute()
+    public override NodeState Execute()
     {
-        foreach (var node in nodes)
+        if (nodes.Count == 0) return NodeState.Failure;
+
+        var state = nodes[currentIndex].Execute();
+
+        switch (state)
         {
-            if (node.Execute())
-            {
-                return true; // Selector succeeds if any node succeeds
-            }
+            case NodeState.Success:
+                currentIndex = 0; // reset for next run
+                return NodeState.Success;
+
+            case NodeState.Failure:
+                currentIndex++;
+                if (currentIndex >= nodes.Count)
+                {
+                    currentIndex = 0; // reset for next run
+                    return NodeState.Failure;
+                }
+                return NodeState.Running;
+
+            case NodeState.Running:
+                return NodeState.Running;
         }
-        return false; // All nodes failed
+
+        return NodeState.Failure;
     }
 }
