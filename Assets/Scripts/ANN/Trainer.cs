@@ -3,11 +3,8 @@ using System.Collections.Generic;
 
 public class Trainer : MonoBehaviour
 {
-    [Header("References")]
-    public Transform player;          // The REAL player in the scene
-    public Agent agentPrefab;         // Prefab for ANN-controlled agents
-
-    [Header("Training Settings")]
+    public Transform player;          
+    public Agent agentPrefab;         
     public int populationSize = 30;
     public float episodeTime = 5f;
 
@@ -34,7 +31,6 @@ public class Trainer : MonoBehaviour
             Destroy(a.gameObject);
         agents.Clear();
 
-        // Use the real player already in the scene
         Transform p = player;
 
         // Spawn agents

@@ -6,8 +6,8 @@ public class ANN
     public int hiddenCount;
     public int outputCount;
 
-    public float[,] w1; // input → hidden
-    public float[,] w2; // hidden → output
+    public float[,] w1;
+    public float[,] w2;
 
     public ANN(int inputCount, int hiddenCount, int outputCount)
     {
@@ -42,7 +42,6 @@ return (float)System.Math.Tanh(x);
         float[] hidden = new float[hiddenCount];
         float[] output = new float[outputCount];
 
-        // Input → Hidden
         for (int h = 0; h < hiddenCount; h++)
         {
             float sum = 0f;
@@ -52,7 +51,6 @@ return (float)System.Math.Tanh(x);
             hidden[h] = Activation(sum);
         }
 
-        // Hidden → Output
         for (int o = 0; o < outputCount; o++)
         {
             float sum = 0f;
