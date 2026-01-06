@@ -60,7 +60,7 @@ public class NPCBehavior : MonoBehaviour
         }
         else
         {
-            Debug.LogError("Player with tag 'Player' not found in scene!");
+            Debug.LogError("No Player tag found in scene!");
         }
     }
 
